@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSE - National Stock Exchange of India Ltd.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        nseNavy: '#0a3161',
+                        nseBlue: '#00539b',
+                        nseOrange: '#eb6b23',
+                        nseGreen: '#009a66',
+                        nseRed: '#d9272d',
+                        nseGray: '#f5f5f5',
+                        nseText: '#333333'
+                    },
+                    fontFamily: {
+                        sans: ['Roboto', 'Arial', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8f9fa; color: #333; font-family: 'Roboto', Arial, sans-serif; }
+        
+        /* Utility Bar */
+        .utility-bar { font-size: 11px; background-color: #f1f1f1; border-bottom: 1px solid #ddd; }
+        
+        /* Main Navigation */
+        .nse-nav .nav-item { padding: 12px 15px; font-size: 14px; font-weight: 500; text-transform: uppercase; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;}
+        .nse-nav .nav-item:hover, .nse-nav .nav-item.active { background-color: #08264a; border-bottom: 3px solid #eb6b23; color: #fff; }
+        
+        /* Ticker Marquee */
+        .ticker-wrap { background-color: #fff; border-bottom: 1px solid #e0e0e0; padding: 5px 0; overflow: hidden; white-space: nowrap; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .ticker-move { display: inline-block; animation: ticker 40s linear infinite; }
+        .ticker-move:hover { animation-play-state: paused; }
+        @keyframes ticker { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        /* Tabs */
+        .nse-tab { padding: 10px 20px; font-weight: 600; font-size: 14px; color: #555; background: #e9ecef; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; margin-right: 2px;}
+        .nse-tab.active { background: #fff; color: #0a3161; border-top: 3px solid #eb6b23; border-bottom: 1px solid #fff; z-index: 10; position: relative; }
+        
+        /* Tables */
+        .nse-table th { background-color: #f4f6f9; color: #0a3161; font-weight: 600; text-transform: uppercase; font-size: 11px; padding: 10px; border-bottom: 2px solid #ddd; }
+        .nse-table td { padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .nse-table tr:hover { background-color: #f8f9fa; }
+        
+        /* Utilities */
+        .text-nse-green { color: #009a66 !important; }
+        .text-nse-red { color: #d9272d !important; }
+        .bg-nse-green { background-color: #009a66 !important; }
+        .bg-nse-red { background-color: #d9272d !important; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak>
+        
+        <!-- Top Utility Bar -->
+        <div class="utility-bar text-gray-600 py-1">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <div class="flex space-x-4">
+                    <a href="#" class="hover:text-nseBlue">Skip to main content</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="#" class="hover:text-nseBlue">A-</a>
+                    <a href="#" class="hover:text-nseBlue">A</a>
+                    <a href="#" class="hover:text-nseBlue">A+</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="#" class="hover:text-nseBlue"><i class="fas fa-wheelchair"></i> Screen Reader Access</a>
+                </div>
+                <div class="flex space-x-4 items-center">
+                    <a href="#" class="hover:text-nseBlue font-semibold">English</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="#" class="hover:text-nseBlue">Hindi</a>
+                    <span class="text-gray-300">|</span>
+                    <a href="#" class="hover:text-nseBlue text-nseOrange font-bold"><i class="fas fa-comment-dots"></i> Feedback</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Header -->
+        <header class="bg-white py-3 shadow-sm relative z-20">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <!-- Logo -->
+                <div class="flex items-center cursor-pointer" @click="currentTab = 'home'">
+                    <img src="https://www.nseindia.com/assets/images/NSE_Logo.svg" alt="NSE Logo" class="h-12 object-contain">
+                </div>
+
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-3xl mx-8">
+                    <div class="flex border-2 border-nseBlue rounded overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <select class="bg-gray-50 text-gray-700 px-3 py-2 text-sm border-r border-gray-200 outline-none cursor-pointer hidden md:block">
+                            <option>Equity</option>
+                            <option>Derivatives</option>
+                            <option>Mutual Funds</option>
+                        </select>
+                        <input type="text" v-model="searchQuery" @focus="currentTab = 'market'" placeholder="Search by company name, symbol or keyword..." class="flex-1 px-4 py-2 text-sm outline-none text-gray-700">
+                        <button class="bg-nseBlue text-white px-6 hover:bg-nseNavy transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Actions -->
+                <div class="hidden lg:flex items-center space-x-4 text-sm font-semibold">
+                    <a href="#" class="flex flex-col items-center text-nseBlue hover:text-nseOrange transition-colors">
+                        <i class="far fa-user-circle text-xl mb-1"></i>
+                        <span>Login</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-nseBlue hover:text-nseOrange transition-colors">
+                        <i class="far fa-envelope text-xl mb-1"></i>
+                        <span>Contact</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Navigation -->
+        <nav class="bg-nseNavy text-white shadow-md relative z-10">
+            <div class="container mx-auto px-4">
+                <div class="flex nse-nav overflow-x-auto whitespace-nowrap">
+                    <div v-for="tab in mainNavTabs" :key="tab.id" 
+                         @click="currentTab = tab.id" 
+                         class="nav-item" :class="{ active: currentTab === tab.id }">
+                        {{ tab.label }}
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Live Ticker Marquee -->
+        <div class="ticker-wrap relative z-0">
+            <div class="ticker-move">
+                <span v-for="stock in stocks" :key="'tick_'+stock.symbol" class="mx-6 inline-flex items-center cursor-pointer hover:underline" @click="viewStock(stock)">
+                    <span class="font-bold mr-2 text-gray-800">{{ stock.symbol }}</span>
+                    <span class="font-mono mr-2">{{ stock.ltp.toFixed(2) }}</span>
+                    <span class="font-semibold text-xs flex items-center" :class="stock.change >= 0 ? 'text-nse-green' : 'text-nse-red'">
+                        <i :class="stock.change >= 0 ? 'fas fa-caret-up' : 'fas fa-caret-down'" class="mr-1"></i>
+                        {{ Math.abs(stock.change).toFixed(2) }} ({{ Math.abs(stock.pChange).toFixed(2) }}%)
+                    </span>
+                </span>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="container mx-auto px-4 py-6 min-h-[70vh]">
+            
+            <!-- Breadcrumbs -->
+            <div class="text-xs text-gray-500 mb-4 font-semibold flex items-center">
+                <i class="fas fa-home mr-2 cursor-pointer hover:text-nseBlue" @click="currentTab='home'"></i>
+                <span v-if="currentTab !== 'home'">
+                    <i class="fas fa-angle-right mx-2 text-gray-400"></i>
+                    <span class="text-nseBlue capitalize">{{ currentTab.replace('-', ' ') }}</span>
+                </span>
+                <span v-if="selectedStock && currentTab === 'stock'">
+                    <i class="fas fa-angle-right mx-2 text-gray-400"></i>
+                    <span class="text-gray-800">{{ selectedStock.symbol }}</span>
+                </span>
+            </div>
+
+            <!-- ===================== HOME PAGE ===================== -->
+            <div v-if="currentTab === 'home'" class="space-y-6">
+                
+                <!-- Market Status Bar -->
+                <div class="bg-white border border-gray-200 p-3 rounded shadow-sm flex justify-between items-center text-sm">
+                    <div class="flex items-center font-bold text-nseNavy">
+                        <span class="w-3 h-3 rounded-full bg-nse-green mr-2 animate-pulse"></span>
+                        Market is Open
+                    </div>
+                    <div class="text-gray-500 font-mono text-xs">
+                        As on {{ new Date().toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'}) }} {{ new Date().toLocaleTimeString('en-IN') }} IST
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    <!-- Left Column: Market Snapshot (col-span-8) -->
+                    <div class="lg:col-span-8">
+                        <h2 class="text-xl font-bold text-nseNavy mb-4 flex items-center">
+                            Market Snapshot
+                            <i class="fas fa-info-circle text-gray-400 text-sm ml-2 cursor-pointer" title="Real-time market snapshot"></i>
+                        </h2>
+                        
+                        <!-- Tabs -->
+                        <div class="flex border-b border-gray-300">
+                            <div class="nse-tab active">NIFTY 50</div>
+                            <div class="nse-tab">NIFTY NEXT 50</div>
+                            <div class="nse-tab">NIFTY BANK</div>
+                        </div>
+
+                        <!-- Tab Content -->
+                        <div class="bg-white border border-gray-300 border-t-0 p-5 shadow-sm rounded-b">
+                            
+                            <!-- Advances/Declines Bar -->
+                            <div class="flex items-center justify-between mb-6 text-sm font-semibold">
+                                <div class="flex space-x-6 w-full items-center">
+                                    <div class="flex items-center w-1/3">
+                                        <span class="text-gray-600 mr-2 uppercase text-xs">Advances</span>
+                                        <span class="text-nse-green text-lg font-bold">{{ advances }}</span>
+                                    </div>
+                                    <div class="w-1/3 flex h-2 rounded-full overflow-hidden bg-gray-200">
+                                        <div class="bg-nse-green" :style="'width: ' + (advances/stocks.length*100) + '%'"></div>
+                                        <div class="bg-nse-red" :style="'width: ' + (declines/stocks.length*100) + '%'"></div>
+                                    </div>
+                                    <div class="flex items-center w-1/3 justify-end">
+                                        <span class="text-nse-red text-lg font-bold mr-2">{{ declines }}</span>
+                                        <span class="text-gray-600 uppercase text-xs">Declines</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-100 pt-5">
+                                <!-- Chart Area -->
+                                <div class="border-r border-gray-100 pr-4">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex items-end">
+                                            <span class="text-3xl font-bold text-nseNavy font-mono">{{ indices[0].value.toFixed(2) }}</span>
+                                        </div>
+                                        <div class="text-right font-bold text-lg" :class="indices[0].change >= 0 ? 'text-nse-green' : 'text-nse-red'">
+                                            <i :class="indices[0].change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
+                                            {{ Math.abs(indices[0].change).toFixed(2) }} ({{ Math.abs(indices[0].pChange).toFixed(2) }}%)
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-4 text-xs text-gray-500 mb-4 font-mono">
+                                        <span>Open: <strong class="text-gray-700">{{ (indices[0].value - 10).toFixed(2) }}</strong></span>
+                                        <span>High: <strong class="text-gray-700">{{ indices[0].high.toFixed(2) }}</strong></span>
+                                        <span>Low: <strong class="text-gray-700">{{ indices[0].low.toFixed(2) }}</strong></span>
+                                    </div>
+                                    <div style="height: 220px;" class="w-full relative">
+                                        <canvas id="homeChart"></canvas>
+                                    </div>
+                                    <div class="flex justify-center mt-3 space-x-2">
+                                        <button class="px-3 py-1 text-xs border border-nseBlue bg-nseBlue text-white rounded">1D</button>
+                                        <button class="px-3 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 rounded">1W</button>
+                                        <button class="px-3 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 rounded">1M</button>
+                                        <button class="px-3 py-1 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 rounded">1Y</button>
+                                    </div>
+                                </div>
+
+                                <!-- Gainers / Losers Table -->
+                                <div>
+                                    <div class="flex space-x-4 mb-3 border-b border-gray-200">
+                                        <button @click="showGainers = true" :class="showGainers ? 'border-b-2 border-nseOrange text-nseNavy font-bold' : 'text-gray-500'" class="pb-2 text-sm uppercase">Top Gainers</button>
+                                        <button @click="showGainers = false" :class="!showGainers ? 'border-b-2 border-nseOrange text-nseNavy font-bold' : 'text-gray-500'" class="pb-2 text-sm uppercase">Top Losers</button>
+                                    </div>
+                                    <table class="w-full text-left nse-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Symbol</th>
+                                                <th class="text-right">LTP (₹)</th>
+                                                <th class="text-right">% Chng</th>
+                                                <th class="text-right">Vol (Lacs)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="stock in (showGainers ? topGainers : topLosers)" :key="stock.symbol" class="cursor-pointer" @click="viewStock(stock)">
+                                                <td class="font-semibold text-nseBlue hover:underline">{{ stock.symbol }}</td>
+                                                <td class="text-right font-mono">{{ stock.ltp.toFixed(2) }}</td>
+                                                <td class="text-right font-mono font-bold" :class="stock.pChange >= 0 ? 'text-nse-green' : 'text-nse-red'">
+                                                    {{ stock.pChange > 0 ? '+' : '' }}{{ stock.pChange.toFixed(2) }}
+                                                </td>
+                                                <td class="text-right font-mono text-gray-600">{{ (stock.volume / 100000).toFixed(2) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="text-right mt-3">
+                                        <a href="#" @click.prevent="currentTab = 'market'" class="text-nseOrange text-xs font-bold hover:underline">View All <i class="fas fa-angle-double-right"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Announcements & Watchlist (col-span-4) -->
+                    <div class="lg:col-span-4 space-y-6">
+                        
+                        <!-- Watchlist Widget -->
+                        <div class="bg-white border border-gray-300 rounded shadow-sm">
+                            <div class="bg-gray-100 border-b border-gray-300 px-4 py-3 flex justify-between items-center">
+                                <h3 class="font-bold text-nseNavy text-sm uppercase">My Watchlist</h3>
+                                <span class="bg-nseNavy text-white text-[10px] px-2 py-0.5 rounded font-bold">{{ watchlist.length }}</span>
+                            </div>
+                            <div class="p-4">
+                                <div v-if="watchlist.length === 0" class="text-center py-6 text-gray-400 text-sm">
+                                    <i class="far fa-star text-4xl mb-2 text-gray-300"></i>
+                                    <p>Your watchlist is empty.</p>
+                                    <p class="text-xs mt-1">Search and click the star icon to add.</p>
+                                </div>
+                                <div v-else class="space-y-0">
+                                    <div v-for="sym in watchlist" :key="sym" class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0 group">
+                                        <div class="font-bold text-sm text-nseBlue cursor-pointer hover:underline" @click="viewStockBySymbol(sym)">{{ sym }}</div>
+                                        <div class="text-right flex items-center space-x-3">
+                                            <div>
+                                                <div class="font-mono text-sm font-semibold">{{ getStock(sym).ltp.toFixed(2) }}</div>
+                                                <div class="text-[11px] font-bold" :class="getStock(sym).pChange >= 0 ? 'text-nse-green' : 'text-nse-red'">
+                                                    {{ getStock(sym).pChange > 0 ? '+' : '' }}{{ getStock(sym).pChange.toFixed(2) }}%
+                                                </div>
+                                            </div>
+                                            <i class="fas fa-times text-gray-300 hover:text-nseRed cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" @click="removeFromWatchlist(sym)" title="Remove"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Announcements -->
+                        <div class="bg-white border border-gray-300 rounded shadow-sm">
+                            <div class="bg-gray-100 border-b border-gray-300 px-4 py-3 flex justify-between items-center">
+                                <h3 class="font-bold text-nseNavy text-sm uppercase">Latest Announcements</h3>
+                                <a href="#" class="text-nseOrange text-xs hover:underline">View All</a>
+                            </div>
+                            <div class="p-0">
+                                <ul class="divide-y divide-gray-100 text-sm">
+                                    <li class="p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <span class="text-xs font-bold text-nseOrange mb-1 block">Corporate Action</span>
+                                        <p class="text-gray-800 font-medium">TCS Ltd. announces special dividend of ₹18 per share; Record date fixed.</p>
+                                        <span class="text-[11px] text-gray-400 mt-2 block"><i class="far fa-clock"></i> 10 mins ago</span>
+                                    </li>
+                                    <li class="p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <span class="text-xs font-bold text-nseBlue mb-1 block">Market Update</span>
+                                        <p class="text-gray-800 font-medium">FII/FPI trading activity: Net buyers of ₹2,450 Cr in cash market.</p>
+                                        <span class="text-[11px] text-gray-400 mt-2 block"><i class="far fa-clock"></i> 45 mins ago</span>
+                                    </li>
+                                    <li class="p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                                        <span class="text-xs font-bold text-nseGreen mb-1 block">IPO Listing</span>
+                                        <p class="text-gray-800 font-medium">TechInnovate Solutions lists at 45% premium on NSE Mainboard.</p>
+                                        <span class="text-[11px] text-gray-400 mt-2 block"><i class="far fa-clock"></i> 2 hours ago</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===================== MARKET DATA PAGE ===================== -->
+            <div v-if="currentTab === 'market'" class="bg-white border border-gray-300 shadow-sm rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-2xl font-bold text-nseNavy">Live Equity Market (NIFTY 50)</h2>
+                    <div class="flex space-x-2">
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-semibold transition-colors border border-gray-300">
+                            <i class="fas fa-download mr-2"></i> Download CSV
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left nse-table">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th class="text-right">Open</th>
+                                <th class="text-right">High</th>
+                                <th class="text-right">Low</th>
+                                <th class="text-right">LTP (₹)</th>
+                                <th class="text-right">Change</th>
+                                <th class="text-right">% Change</th>
+                                <th class="text-right">Volume</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="stock in filteredStocks" :key="stock.symbol">
+                                <td class="font-bold text-nseBlue cursor-pointer hover:underline" @click="viewStock(stock)">{{ stock.symbol }}</td>
+                                <td class="text-right font-mono text-gray-600">{{ stock.open.toFixed(2) }}</td>
+                                <td class="text-right font-mono text-gray-600">{{ stock.high.toFixed(2) }}</td>
+                                <td class="text-right font-mono text-gray-600">{{ stock.low.toFixed(2) }}</td>
+                                <td class="text-right font-mono font-bold">{{ stock.ltp.toFixed(2) }}</td>
+                                <td class="text-right font-mono font-semibold" :class="stock.change >= 0 ? 'text-nse-green' : 'text-nse-red'">{{ stock.change > 0 ? '+' : '' }}{{ stock.change.toFixed(2) }}</td>
+                                <td class="text-right font-mono font-bold" :class="stock.change >= 0 ? 'bg-green-50 text-nse-green' : 'bg-red-50 text-nse-red'">{{ stock.pChange > 0 ? '+' : '' }}{{ stock.pChange.toFixed(2) }}%</td>
+                                <td class="text-right font-mono text-gray-600">{{ stock.volume.toLocaleString() }}</td>
+                                <td class="text-center">
+                                    <i @click="toggleWatchlist(stock.symbol)" class="cursor-pointer text-lg transition-transform hover:scale-110" :class="watchlist.includes(stock.symbol) ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-300'"></i>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="filteredStocks.length === 0" class="py-12 text-center text-gray-500 font-medium">
+                    <i class="fas fa-search text-3xl mb-3 text-gray-300"></i><br>
+                    No stocks found matching "{{ searchQuery }}"
+                </div>
+            </div>
+
+            <!-- ===================== STOCK DETAIL PAGE ===================== -->
+            <div v-if="currentTab === 'stock' && selectedStock">
+                <!-- Stock Header Card -->
+                <div class="bg-white border border-gray-300 shadow-sm rounded p-6 mb-6">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-1">
+                                <h1 class="text-3xl font-black text-nseNavy">{{ selectedStock.symbol }}</h1>
+                                <span class="bg-gray-100 text-gray-600 border border-gray-300 text-xs px-2 py-1 rounded font-bold">EQ</span>
+                                <i @click="toggleWatchlist(selectedStock.symbol)" class="cursor-pointer text-xl transition-transform hover:scale-110" :class="watchlist.includes(selectedStock.symbol) ? 'fas fa-star text-yellow-400' : 'far fa-star text-gray-300'" title="Add/Remove Watchlist"></i>
+                            </div>
+                            <p class="text-gray-500 text-xs font-semibold">ISIN: INE002A01018 | Sector: Simulated Equities</p>
+                        </div>
+                        
+                        <div class="mt-4 md:mt-0 text-right flex items-end space-x-4">
+                            <div class="text-4xl font-bold font-mono tracking-tight text-gray-800">
+                                ₹{{ selectedStock.ltp.toFixed(2) }}
+                            </div>
+                            <div class="pb-1 text-lg font-bold" :class="selectedStock.change >= 0 ? 'text-nse-green' : 'text-nse-red'">
+                                <i :class="selectedStock.change >= 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i> 
+                                {{ Math.abs(selectedStock.change).toFixed(2) }} ({{ Math.abs(selectedStock.pChange).toFixed(2) }}%)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left: Chart & Fundamentals -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white border border-gray-300 shadow-sm rounded p-5">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-nseNavy uppercase text-sm border-b-2 border-nseOrange pb-1 inline-block">Price Chart</h3>
+                                <div class="flex space-x-1">
+                                    <button class="px-3 py-1 bg-nseBlue text-white text-xs rounded">1D</button>
+                                    <button class="px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs rounded">1W</button>
+                                    <button class="px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs rounded">1M</button>
+                                    <button class="px-3 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs rounded">1Y</button>
+                                </div>
+                            </div>
+                            <div style="height: 350px;" class="w-full relative">
+                                <canvas id="stockChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Trade Information -->
+                        <div class="bg-white border border-gray-300 shadow-sm rounded p-0">
+                            <div class="bg-gray-100 border-b border-gray-300 px-5 py-3">
+                                <h3 class="font-bold text-nseNavy uppercase text-sm">Trade Information</h3>
+                            </div>
+                            <div class="p-5 grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Previous Close</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ (selectedStock.ltp - selectedStock.change).toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Open</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ selectedStock.open.toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">High</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ selectedStock.high.toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Low</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ selectedStock.low.toFixed(2) }}</div>
+                                </div>
+                                
+                                <div class="col-span-2 md:col-span-4 border-t border-gray-100"></div>
+                                
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">VWAP</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ (selectedStock.ltp * 0.998).toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">52 Week High</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ (selectedStock.high * 1.15).toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">52 Week Low</div>
+                                    <div class="font-bold font-mono text-gray-800">{{ (selectedStock.low * 0.85).toFixed(2) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Face Value</div>
+                                    <div class="font-bold font-mono text-gray-800">10.00</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Order Book -->
+                    <div class="space-y-6">
+                        <div class="bg-white border border-gray-300 shadow-sm rounded p-0 overflow-hidden">
+                            <div class="bg-nseNavy text-white px-4 py-3 flex justify-between items-center">
+                                <h3 class="font-bold text-sm uppercase tracking-wider">Order Book</h3>
+                                <span class="w-2 h-2 bg-nse-green rounded-full animate-pulse"></span>
+                            </div>
+                            
+                            <table class="w-full text-xs font-mono">
+                                <thead>
+                                    <tr class="bg-gray-100 text-gray-600 border-b border-gray-200">
+                                        <th class="p-2 text-right w-1/4 font-semibold">Buy Qty</th>
+                                        <th class="p-2 text-right w-1/4 font-semibold">Buy Price</th>
+                                        <th class="p-2 text-right w-1/4 font-semibold">Sell Price</th>
+                                        <th class="p-2 text-right w-1/4 font-semibold">Sell Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="i in 5" :key="'order_'+i" class="border-b border-gray-100 last:border-0 relative">
+                                        <td class="p-2 text-right text-nse-green relative z-10 font-bold">{{ Math.floor(Math.random() * 5000) + 100 }}</td>
+                                        <td class="p-2 text-right text-nse-green relative z-10">{{ (selectedStock.ltp - (i*0.25)).toFixed(2) }}</td>
+                                        <td class="p-2 text-right text-nse-red relative z-10">{{ (selectedStock.ltp + (i*0.25)).toFixed(2) }}</td>
+                                        <td class="p-2 text-right text-nse-red relative z-10 font-bold">{{ Math.floor(Math.random() * 5000) + 100 }}</td>
+                                        
+                                        <!-- Depth Bars -->
+                                        <div class="absolute left-0 top-0 bottom-0 bg-green-50 opacity-50" :style="'width: ' + (Math.random()*30+10) + '%'"></div>
+                                        <div class="absolute right-0 top-0 bottom-0 bg-red-50 opacity-50" :style="'width: ' + (Math.random()*30+10) + '%'"></div>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                                        <td class="p-2 text-right text-nse-green">Total: 45,210</td>
+                                        <td colspan="2" class="p-2 text-center text-gray-500"></td>
+                                        <td class="p-2 text-right text-nse-red">Total: 38,940</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            
+                            <div class="p-4 border-t border-gray-200 grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <span class="text-gray-500 block mb-1">Traded Volume (Shares)</span>
+                                    <span class="font-bold font-mono text-sm">{{ selectedStock.volume.toLocaleString() }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block mb-1">Traded Value (₹ Lacs)</span>
+                                    <span class="font-bold font-mono text-sm">{{ (selectedStock.ltp * selectedStock.volume / 100000).toFixed(2) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===================== OPTION CHAIN PAGE ===================== -->
+            <div v-if="currentTab === 'options'" class="bg-white border border-gray-300 shadow-sm rounded p-0">
+                <div class="p-5 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center bg-gray-50 rounded-t">
+                    <div>
+                        <h2 class="text-2xl font-bold text-nseNavy">Option Chain (Equity Derivatives)</h2>
+                        <p class="text-sm text-gray-600 mt-1">Underlying Index: <strong class="text-nseNavy text-base">NIFTY 50 {{ indices[0].value.toFixed(2) }}</strong></p>
+                    </div>
+                    <div class="mt-4 md:mt-0 flex space-x-3 items-center">
+                        <label class="text-sm font-semibold text-gray-600">Expiry Date:</label>
+                        <select class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-semibold outline-none focus:border-nseBlue cursor-pointer shadow-sm">
+                            <option>28-May-2026</option>
+                            <option>04-Jun-2026</option>
+                            <option>25-Jun-2026</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center text-[11px] border-collapse">
+                        <thead>
+                            <tr class="bg-nseNavy text-white border-b-2 border-gray-300">
+                                <th colspan="4" class="p-2 border-r border-gray-500">CALLS</th>
+                                <th class="p-2 w-24 bg-nseBlue border-r border-gray-500">STRIKE</th>
+                                <th colspan="4" class="p-2">PUTS</th>
+                            </tr>
+                            <tr class="bg-[#f4f6f9] text-nseNavy font-bold uppercase border-b border-gray-300">
+                                <th class="p-2 border-r border-gray-200">OI</th>
+                                <th class="p-2 border-r border-gray-200">Volume</th>
+                                <th class="p-2 border-r border-gray-200">LTP</th>
+                                <th class="p-2 border-r border-gray-300">Net Chng</th>
+                                
+                                <th class="p-2 bg-[#e9ecef] border-r border-gray-300">Price</th>
+                                
+                                <th class="p-2 border-r border-gray-200">Net Chng</th>
+                                <th class="p-2 border-r border-gray-200">LTP</th>
+                                <th class="p-2 border-r border-gray-200">Volume</th>
+                                <th class="p-2">OI</th>
+                            </tr>
+                        </thead>
+                        <tbody class="font-mono">
+                            <tr v-for="opt in optionChain" :key="opt.strike" class="border-b border-gray-200 hover:bg-gray-100">
+                                <td class="p-2 border-r border-gray-200" :class="opt.strike < 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.ce_oi.toLocaleString() }}</td>
+                                <td class="p-2 border-r border-gray-200" :class="opt.strike < 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.ce_vol.toLocaleString() }}</td>
+                                <td class="p-2 border-r border-gray-200 font-bold" :class="opt.strike < 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.ce_ltp.toFixed(2) }}</td>
+                                <td class="p-2 border-r border-gray-300" :class="[opt.strike < 24500 ? 'bg-[#fff9e6]' : '', opt.ce_chg >= 0 ? 'text-nse-green' : 'text-nse-red']">{{ opt.ce_chg > 0 ? '+' : ''}}{{ opt.ce_chg.toFixed(2) }}</td>
+                                
+                                <td class="p-2 font-bold bg-[#f8f9fa] border-r border-gray-300 text-nseBlue text-[13px]">{{ opt.strike }}</td>
+                                
+                                <td class="p-2 border-r border-gray-200" :class="[opt.strike >= 24500 ? 'bg-[#fff9e6]' : '', opt.pe_chg >= 0 ? 'text-nse-green' : 'text-nse-red']">{{ opt.pe_chg > 0 ? '+' : ''}}{{ opt.pe_chg.toFixed(2) }}</td>
+                                <td class="p-2 border-r border-gray-200 font-bold" :class="opt.strike >= 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.pe_ltp.toFixed(2) }}</td>
+                                <td class="p-2 border-r border-gray-200" :class="opt.strike >= 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.pe_vol.toLocaleString() }}</td>
+                                <td class="p-2" :class="opt.strike >= 24500 ? 'bg-[#fff9e6]' : ''">{{ opt.pe_oi.toLocaleString() }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 bg-gray-50 text-xs text-gray-600 rounded-b border-t border-gray-200 flex items-center">
+                    <span class="w-3 h-3 inline-block bg-[#fff9e6] border border-[#ffe066] mr-2"></span>
+                    Yellow shaded areas denote In The Money (ITM) options.
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Professional Footer -->
+        <footer class="bg-nseNavy text-white mt-12 pt-10 border-t-4 border-nseOrange">
+            <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8 text-sm">
+                <div class="lg:col-span-2">
+                    <img src="https://www.nseindia.com/assets/images/NSE_Logo.svg" alt="NSE Logo" class="h-10 mb-4 brightness-0 invert opacity-90">
+                    <p class="text-gray-300 mb-4 leading-relaxed pr-8">
+                        National Stock Exchange of India Ltd. is the leading stock exchange of India, located in Mumbai, Maharashtra. This is a frontend clone created for demonstration purposes.
+                    </p>
+                    <div class="flex space-x-3">
+                        <a href="#" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-nseOrange transition-colors"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-nseOrange transition-colors"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-nseOrange transition-colors"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-nseOrange transition-colors"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-nseOrange mb-4 uppercase text-xs tracking-wider border-b border-white/20 pb-2 inline-block">Market Data</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#" class="hover:text-white transition-colors">Equity & SME Market</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Derivatives Market</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Indices</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Historical Data</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-nseOrange mb-4 uppercase text-xs tracking-wider border-b border-white/20 pb-2 inline-block">Invest & Trade</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#" class="hover:text-white transition-colors">Upcoming IPOs</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Mutual Funds</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Sovereign Gold Bonds</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">ETF & Debt</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-nseOrange mb-4 uppercase text-xs tracking-wider border-b border-white/20 pb-2 inline-block">About Us</h4>
+                    <ul class="space-y-2 text-gray-300">
+                        <li><a href="#" class="hover:text-white transition-colors">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Holidays</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Investor Relations</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="bg-[#061d3a] py-4 text-xs text-gray-400">
+                <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+                    <p>&copy; 2026 NSE India Clone. Simulated Data only.</p>
+                    <div class="space-x-4 mt-2 md:mt-0">
+                        <a href="#" class="hover:text-white">Terms of Use</a>
+                        <span class="text-gray-600">|</span>
+                        <a href="#" class="hover:text-white">Privacy Policy</a>
+                        <span class="text-gray-600">|</span>
+                        <a href="#" class="hover:text-white">Disclaimer</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Vue Application Logic -->
+    <script>
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+        const MOCK_STOCKS = [
+            { symbol: 'RELIANCE', ltp: 2950.00, change: 15.20, pChange: 0.52, open: 2930, high: 2965, low: 2920, volume: 5400000 },
+            { symbol: 'TCS', ltp: 3850.50, change: -12.30, pChange: -0.32, open: 3870, high: 3880, low: 3840, volume: 2100000 },
+            { symbol: 'INFOSYS', ltp: 1420.75, change: 8.40, pChange: 0.59, open: 1410, high: 1435, low: 1405, volume: 3200000 },
+            { symbol: 'HDFCBANK', ltp: 1640.20, change: -5.60, pChange: -0.34, open: 1650, high: 1655, low: 1630, volume: 8500000 },
+            { symbol: 'ICICIBANK', ltp: 1120.30, change: 12.10, pChange: 1.09, open: 1110, high: 1130, low: 1105, volume: 6700000 },
+            { symbol: 'WIPRO', ltp: 460.10, change: 4.50, pChange: 0.99, open: 455, high: 465, low: 450, volume: 1500000 },
+            { symbol: 'ITC', ltp: 430.50, change: -1.20, pChange: -0.28, open: 432, high: 434, low: 428, volume: 9200000 },
+            { symbol: 'BAJFINANCE', ltp: 6800.00, change: 150.50, pChange: 2.26, open: 6650, high: 6850, low: 6600, volume: 800000 },
+            { symbol: 'MARUTI', ltp: 12500.25, change: -80.00, pChange: -0.64, open: 12600, high: 12650, low: 12450, volume: 300000 },
+            { symbol: 'TATAMOTORS', ltp: 980.60, change: 25.40, pChange: 2.66, open: 960, high: 990, low: 955, volume: 12000000 },
+            { symbol: 'ADANIPORTS', ltp: 1350.40, change: -20.10, pChange: -1.47, open: 1375, high: 1380, low: 1340, volume: 4500000 },
+            { symbol: 'HCLTECH', ltp: 1340.25, change: 5.25, pChange: 0.39, open: 1335, high: 1350, low: 1330, volume: 1800000 },
+            { symbol: 'ASIANPAINT', ltp: 2850.10, change: 22.40, pChange: 0.79, open: 2830, high: 2865, low: 2820, volume: 1100000 },
+            { symbol: 'TITAN', ltp: 3200.50, change: -45.20, pChange: -1.39, open: 3250, high: 3260, low: 3190, volume: 950000 }
+        ];
+
+        const MOCK_INDICES = [
+            { name: 'NIFTY 50', value: 24500.25, change: 45.50, pChange: 0.18, high: 24550, low: 24420 }
+        ];
+
+        const MOCK_OPTIONS = [];
+        for(let i=24000; i<=25000; i+=100) {
+            MOCK_OPTIONS.push({
+                strike: i,
+                ce_oi: Math.floor(Math.random() * 80000) + 10000, ce_vol: Math.floor(Math.random() * 500000), ce_ltp: Math.random() * 500, ce_chg: (Math.random() * 60) - 30,
+                pe_oi: Math.floor(Math.random() * 80000) + 10000, pe_vol: Math.floor(Math.random() * 500000), pe_ltp: Math.random() * 500, pe_chg: (Math.random() * 60) - 30
+            });
+        }
+
+        createApp({
+            setup() {
+                const currentTab = ref('home');
+                const searchQuery = ref('');
+                const showGainers = ref(true);
+                const selectedStock = ref(null);
+                const watchlist = ref(JSON.parse(localStorage.getItem('nse_watchlist')) || []);
+                
+                const stocks = ref(JSON.parse(JSON.stringify(MOCK_STOCKS)));
+                const indices = ref(JSON.parse(JSON.stringify(MOCK_INDICES)));
+                const optionChain = ref(MOCK_OPTIONS);
+
+                let homeChartInstance = null;
+                let stockChartInstance = null;
+
+                const mainNavTabs = [
+                    { id: 'home', label: 'Home' },
+                    { id: 'about', label: 'About Us' },
+                    { id: 'market', label: 'Market Data' },
+                    { id: 'invest', label: 'Invest' },
+                    { id: 'options', label: 'Derivatives' },
+                    { id: 'learn', label: 'Learn' },
+                    { id: 'regulation', label: 'Regulation' }
+                ];
+
+                const toggleWatchlist = (symbol) => {
+                    if (watchlist.value.includes(symbol)) {
+                        watchlist.value = watchlist.value.filter(s => s !== symbol);
+                    } else {
+                        watchlist.value.push(symbol);
+                    }
+                    localStorage.setItem('nse_watchlist', JSON.stringify(watchlist.value));
+                };
+
+                const removeFromWatchlist = (symbol) => toggleWatchlist(symbol);
+                const getStock = (symbol) => stocks.value.find(s => s.symbol === symbol) || stocks.value[0];
+
+                const viewStock = (stock) => {
+                    selectedStock.value = stock;
+                    currentTab.value = 'stock';
+                    window.scrollTo(0,0);
+                };
+
+                const viewStockBySymbol = (sym) => { viewStock(getStock(sym)); };
+
+                const filteredStocks = computed(() => {
+                    if(!searchQuery.value) return stocks.value;
+                    return stocks.value.filter(s => s.symbol.toLowerCase().includes(searchQuery.value.toLowerCase()));
+                });
+
+                const topGainers = computed(() => [...stocks.value].sort((a,b) => b.pChange - a.pChange).slice(0,5));
+                const topLosers = computed(() => [...stocks.value].sort((a,b) => a.pChange - b.pChange).slice(0,5));
+                const advances = computed(() => stocks.value.filter(s => s.change > 0).length);
+                const declines = computed(() => stocks.value.filter(s => s.change < 0).length);
+
+                // Simulation Logic (Live Price Engine)
+                setInterval(() => {
+                    stocks.value.forEach(stock => {
+                        const fluctuation = (Math.random() - 0.5) * (stock.ltp * 0.001); // Realistic tiny ticks
+                        stock.ltp += fluctuation;
+                        stock.change += fluctuation;
+                        stock.pChange = (stock.change / stock.open) * 100;
+                        if(stock.ltp > stock.high) stock.high = stock.ltp;
+                        if(stock.ltp < stock.low) stock.low = stock.ltp;
+                        stock.volume += Math.floor(Math.random() * 2000);
+                    });
+
+                    indices.value.forEach(idx => {
+                        const fluc = (Math.random() - 0.5) * 5;
+                        idx.value += fluc;
+                        idx.change += fluc;
+                        idx.pChange = (idx.change / (idx.value - idx.change)) * 100;
+                    });
+                }, 1500);
+
+                // Charting
+                const renderCharts = () => {
+                    nextTick(() => {
+                        Chart.defaults.font.family = 'Roboto, Arial, sans-serif';
+                        
+                        // Nifty Chart (Home Page)
+                        if(currentTab.value === 'home') {
+                            const ctx = document.getElementById('homeChart');
+                            if(!ctx) return;
+                            if(homeChartInstance) homeChartInstance.destroy();
+                            
+                            const dataPoints = Array.from({length: 30}, (_,i) => 24450 + Math.random()*80 + (i*1));
+                            const labels = Array.from({length: 30}, (_,i) => `09:${Math.floor(i/4)}${i%4*15}`);
+
+                            homeChartInstance = new Chart(ctx, {
+                                type: 'line',
+                                data: { 
+                                    labels, 
+                                    datasets: [{ 
+                                        label: 'NIFTY 50', 
+                                        data: dataPoints, 
+                                        borderColor: '#00539b', // NSE Blue
+                                        borderWidth: 2, 
+                                        fill: true, 
+                                        backgroundColor: 'rgba(0, 83, 155, 0.05)', // Light blue fill
+                                        tension: 0, // Sharp jagged edges like NSE
+                                        pointRadius: 0,
+                                        pointHoverRadius: 4
+                                    }] 
+                                },
+                                options: { 
+                                    responsive: true, maintainAspectRatio: false, 
+                                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, 
+                                    scales: { 
+                                        x: { ticks: { color: '#888', maxTicksLimit: 6 }, grid: { display: false } }, 
+                                        y: { ticks: { color: '#888' }, grid: { color: '#eee', drawBorder: false } } 
+                                    },
+                                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                                }
+                            });
+                        }
+                        
+                        // Stock Detail Chart
+                        if(currentTab.value === 'stock' && selectedStock.value) {
+                            const ctx = document.getElementById('stockChart');
+                            if(!ctx) return;
+                            if(stockChartInstance) stockChartInstance.destroy();
+
+                            const base = selectedStock.value.open;
+                            const isPositive = selectedStock.value.change >= 0;
+                            const color = isPositive ? '#009a66' : '#d9272d';
+                            const bgColor = isPositive ? 'rgba(0, 154, 102, 0.05)' : 'rgba(217, 39, 45, 0.05)';
+
+                            const dataPoints = Array.from({length: 40}, (_,i) => base + (Math.random()-0.5)*(base*0.01) + (i*(selectedStock.value.change/40)));
+                            const labels = Array.from({length: 40}, (_,i) => `09:${Math.floor(i/4)}${i%4*15}`);
+
+                            stockChartInstance = new Chart(ctx, {
+                                type: 'line',
+                                data: { 
+                                    labels, 
+                                    datasets: [{ 
+                                        label: selectedStock.value.symbol, 
+                                        data: dataPoints, 
+                                        borderColor: color, 
+                                        borderWidth: 2, 
+                                        fill: true, 
+                                        backgroundColor: bgColor, 
+                                        tension: 0,
+                                        pointRadius: 0,
+                                        pointHoverRadius: 5
+                                    }] 
+                                },
+                                options: { 
+                                    responsive: true, maintainAspectRatio: false, 
+                                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, 
+                                    scales: { 
+                                        x: { ticks: { color: '#888', maxTicksLimit: 8 }, grid: { display: false } }, 
+                                        y: { ticks: { color: '#888' }, grid: { color: '#eee', drawBorder: false } } 
+                                    },
+                                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                                }
+                            });
+                        }
+                    });
+                };
+
+                watch(currentTab, () => { renderCharts(); });
+                onMounted(() => { renderCharts(); });
+
+                return {
+                    currentTab, mainNavTabs, searchQuery,
+                    stocks, indices, optionChain,
+                    showGainers, topGainers, topLosers, advances, declines,
+                    filteredStocks, viewStock, selectedStock,
+                    watchlist, toggleWatchlist, removeFromWatchlist, getStock, viewStockBySymbol
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
